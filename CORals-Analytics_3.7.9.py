@@ -2,7 +2,7 @@
 
 # vim: set fileencoding="utf-8":
 
-#CORals Analytics v.3.7.8_win
+#CORals Analytics v.3.7.9
 #This script is created by Christian Otto Ruge and CORals.
 #It is licenced under GNU GPL v.3.
 #https://www.corals.no
@@ -61,7 +61,7 @@ layoutOriginal = [
     [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
 
 try:    
-    winOriginal = sg.Window('CORals Analytics v. 3.7.7', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutOriginal)    
+    winOriginal = sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutOriginal)    
 
     winCsv_active=False
     winCorrelation_active=False
@@ -114,7 +114,7 @@ try:
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
             
 
-            winCsv=sg.Window('CORals Analytics v. 3.7.8', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutCsv)
+            winCsv=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutCsv)
 
             while True:
                 evCsv, valCsv = winCsv.Read(timeout=100)
@@ -320,7 +320,7 @@ try:
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
 
             
-            winCorrelation=sg.Window('CORals Analytics v. 3.7.6', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutCorrelation)
+            winCorrelation=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutCorrelation)
 
             while True:
                 evCorrelation, valCorrelation = winCorrelation.Read(timeout=100)    
@@ -450,7 +450,7 @@ try:
                 [sg.Text('')],
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
 
-            winRegression=sg.Window('CORals Analytics v. 3.7.8_win', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutRegression)
+            winRegression=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutRegression)
   
             while True:
                 evRegression, valRegression = winRegression.Read(timeout=100)
@@ -615,7 +615,7 @@ try:
             
 
 
-            winMediation=sg.Window('CORals Analytics v. 3.7.8_win', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutMediation)
+            winMediation=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutMediation)
 
 
             while True:
@@ -759,7 +759,7 @@ try:
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
             
 
-            winModeration=sg.Window('CORals Analytics v. 3.7.8_win', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutModeration)
+            winModeration=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutModeration)
 
             while True:
                 evModeration, valModeration = winModeration.Read(timeout=100)
@@ -934,7 +934,7 @@ try:
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
 
             
-            winDistribution=sg.Window('CORals Analytics v. 3.7.8_win', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutDistribution)
+            winDistribution=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutDistribution)
         
             
             while True:
@@ -1087,7 +1087,7 @@ try:
                 [sg.Text('')],
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
 
-            winFactor=sg.Window('CORals Analytics v. 3.7.8_win', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutFactor)
+            winFactor=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutFactor)
 
             while True:
                 evFactor, valFactor = winFactor.Read(timeout=100)
@@ -1378,7 +1378,7 @@ try:
                 [sg.Text('')],
                 [sg.Text('©Licenced under GNU GPL v2 by Christian Otto Ruge', justification='right')]]
             
-            winScales=sg.Window('CORals Analytics v. 3.7.8_win', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutScales)
+            winScales=sg.Window('CORals Analytics v. 3.7.9', default_element_size=(40, 1), grab_anywhere=False, location=(100,100), size=(530,650)).Layout(layoutScales)
            
             while True:
                 evScales, valScales = winScales.Read(timeout=100)
