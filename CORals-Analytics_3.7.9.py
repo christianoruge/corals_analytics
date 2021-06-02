@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.7
+# -*- coding: utf-8 -*-s
 
-# vim: set fileencoding="utf-8":
 
 #CORals Analytics v.3.7.9
 #This script is created by Christian Otto Ruge and CORals.
@@ -13,20 +13,15 @@
 import os
 import pandas as pd
 import csv
-import csv23
+
 import xlsxwriter
-from xlsxwriter import Workbook
-import pingouin as pg
-import xlrd
 import PySimpleGUI as sg
 from io import open
 import seaborn as sns
 import matplotlib.pyplot as plt
-from scipy import stats
-from scipy.stats import pearsonr
 import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-import statsmodels.formula.api as smf
+
 from pyprocessmacro import Process
 from factor_analyzer import FactorAnalyzer
 from factor_analyzer import ConfirmatoryFactorAnalyzer
