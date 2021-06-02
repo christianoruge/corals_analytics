@@ -5,6 +5,7 @@
 #CORals Analytics v.3.7.9
 #This script is created by Christian Otto Ruge and CORals.
 #It is licenced under GNU GPL v.3.
+#Github: https://github.com/christianoruge/corals_analytics/blob/main/CORals-Analytics_3.7.9.py
 #https://www.corals.no
 
 
