@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.9.9
 # -*- coding: utf-8 -*-
 
-#CORals Analytics v.3.9.9
+#CORals Analytics v.3.9.9.1
 #This script is created by Christian Otto Ruge and CORals.
 #It is licenced under GNU GPL v.3.
 #https://www.corals.no
@@ -10,42 +10,31 @@
 import os
 from turtle import fd
 import pandas as pd
-#import tabulate
 import numpy as np
 import PySimpleGUI as sg
-#import validators
-#import sys
-#import xlrd
-#import xlsxwriter
-#from xlsxwriter.workbook import Workbook
+import xlrd
+import xlsxwriter
 from pyprocessmacro import Process
 from io import open
-#import openpyxl
-#import pingouin as pg
+import openpyxl
 from pingouin import mediation_analysis
 import seaborn as sns
 import matplotlib.pyplot as plt
-#import patsy
 from sklearn import linear_model
 from scipy import stats
-#from scipy.stats import pearsonr
+from scipy.stats import zscore
 import statsmodels.api as sm
-#import statsmodels.formula.api as smf
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import warnings
-#from sklearn.datasets import load_iris
 from factor_analyzer import FactorAnalyzer
 from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity
 from factor_analyzer.factor_analyzer import calculate_kmo
 import pyreadstat as py
 from string import printable
-
+import datetime
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-#Start - To display plots in canvas:
-#https://pysimplegui.readthedocs.io/en/latest/cookbook/#matplotlib-window-with-gui-window
-#End - To display plots in canvas
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 warnings.simplefilter("ignore", category=FutureWarning)
 
@@ -62,11 +51,11 @@ def CheckInt(s):
         return True
     except ValueError:
         return False
+    
 
 sg.theme('LightGrey1')
 
 layoutOriginal = [
-    [sg.Text('')],
     [sg.Text('CORals analytics', size=(25,1), justification='left', font=("Arial", 20, "bold"))],
     [sg.Text('TOOLS FOR SCIENTIFIC RESEARCH', font=('bold'))],
     [sg.Text('')],  
@@ -142,9 +131,11 @@ try:
         #Reveal datatype and create dataframe
         data_in=valOriginal['analytics_dataset']
         chosen_filename=os.path.basename(data_in)
+        
+        
+        
 
         if (evOriginal)=='Continue':
-        
             if data_in.endswith('.csv'):
                 data_df=pd.read_csv(data_in, sep=None, encoding='iso-8859-1', engine='python')
                 if not (valOriginal['filter_var']=='' and valOriginal['filter_val']==''):
@@ -153,10 +144,12 @@ try:
                     filter_val=int(filter_val)
                     if filter_var in data_df:
                         data_df=data_df.loc[data_df[filter_var]==filter_val]
-                
+
             
             elif data_in.endswith('.xlsx'):
-                data_df=pd.read_excel(data_in)
+                print(data_in)
+                
+                data_df=pd.read_excel(data_in, engine='openpyxl')
                 if not (valOriginal['filter_var']=='' and valOriginal['filter_val']==''):
                     filter_var=valOriginal['filter_var']
                     filter_val=valOriginal['filter_val']
@@ -260,7 +253,6 @@ try:
                         break
             
         #Descriptive/Distribution
-        
         if (not winDistribution_active) and (valOriginal['Distribution']==True) and (evOriginal=='Continue') and ((data_in.endswith('.csv')) or (data_in.endswith('.xlsx'))):
             winOriginal.Hide()
             winDistribution=True
@@ -279,7 +271,7 @@ try:
                 [sg.InputText('', key='distribution_variables', size=(70,1))],
                 [sg.Text('Export output: ', font=('bold')), sg.Radio('No: ', 'RADIO2', key='distribution_output_no', default=True, size=(20,1)), sg.Radio('Yes: ', 'RADIO2', key='distribution_output_yes', default=False, size=(20,1))],
                 [sg.Text('Select output formats:', font=('bold'))],
-                [sg.Checkbox('Line charts', key='lines', default=False, size=(20,1)),  sg.Checkbox('Bars', key='bars', default=False, size=(20,1))],  
+                [sg.Checkbox('Line plots', key='lines', default=False, size=(20,1)),  sg.Checkbox('Bar plots', key='bars', default=False, size=(20,1))],  
                 [sg.Checkbox('Pairwise plots', key='plots', default=False, size=(20,1)), sg.Checkbox('Descriptive values', key='values', default=False, size=(20,1))], 
                 [sg.Text('Optional: Enter hue-variables (for pairwise plots only)')],
                 [sg.Text('Hue variable must be one of the above selected variables.')],
@@ -396,6 +388,7 @@ try:
                                 print(f'Distribution of: {n}')
                                 print(count_str)
                                 print('')
+                                
                             
                             print('Distribution analysis completed')
                             print('')
@@ -454,8 +447,10 @@ try:
                                 if valDistribution['plots']==True:
                                     sns.pairplot(df, diag_kind="auto", hue=color, palette="husl")
                                     #plt.show()
-                                    new_filename=f'Pair_plots_{varnames}.png'
-                                    plt.savefig(os.path.join(output_folder, new_filename), dpi=300, format='png', transparent=True) 
+                                    new_filename_png=f'Pairwise_plots_{varnames}.png'
+                                    new_filename_pdf=f'Pairwise_plots_{varnames}.pdf'
+                                    plt.savefig(os.path.join(output_folder, new_filename_png), dpi=300, format='png', transparent=True) 
+                                    plt.savefig(os.path.join(output_folder, new_filename_pdf), dpi=300, format='pdf') 
                                     
                                     print(f'Pairwise plots for {varnames} saved')
                                     plt.close()
@@ -463,8 +458,10 @@ try:
                                 if valDistribution['values']==True:
                                     engine = 'xlsxwriter'
                                     new_filename=f'Values_{varnames}.xlsx'
+                                    count = count.rename(columns={count.columns[0]: 'Value'})
                                     with pd.ExcelWriter(os.path.join(output_folder, new_filename)) as writer:                     
-                                        values.to_excel(writer, sheet_name="Distribution", startcol=1, startrow=0)
+                                        values.to_excel(writer, sheet_name="Distribution", startcol=0, startrow=0)
+                                        count.to_excel(writer, sheet_name="Distribution", index=False, startcol=0, startrow=10)
                                     print('Values saved')
 
                             print('...')
@@ -525,7 +522,7 @@ try:
 
                 if evCorrelation=='Check available variables':
                     variables=list(data_df.columns)
-                    separator = ', '
+                    separator = ','
                     print('Available variables in dataset:')
                     print(separator.join(variables))
                     print('')
@@ -545,7 +542,6 @@ try:
 
                 #Valdidate variables supplied
                 elif (evCorrelation=='Continue') and not (valCorrelation['correlation_variables']==''):
-                    
                     var=valCorrelation['correlation_variables']
                     var = ''.join(char for char in var if char in printable)
                     var=var.replace(" ", "")
@@ -558,7 +554,7 @@ try:
                     #data = data[data.applymap(CheckInt).all(axis=1)].astype(int)
                     #Remove rows with non-numeric data
                     data = data.apply(pd.to_numeric, errors='coerce')
-                    
+
                     validvariables=list(data.columns)
                     
                     list_var=list(varsplit)
@@ -570,7 +566,10 @@ try:
                     data=data_df[varsplit]
 
                     list_var=list(varsplit)
-                    
+
+                    now='{date:%Y-%m-%d_%H-%M-%S}'.format( date=datetime.datetime.now() )
+                    now=f'{now}'
+    
                     response='yes'
                     for string in list_var:    
                         if string not in validvariables:
@@ -617,37 +616,51 @@ try:
                             if valCorrelation['corr_output_yes']==True:
 
                                 if valCorrelation['heatmap']==True and valCorrelation['corr_output_yes']==True and valCorrelation['correlation_output'] !='':
-
                                     #Create and save heatmap as png-file
                                     corrs = chosendata.corr()
-                                    mask = np.zeros_like(corrs)
-                                    mask[np.triu_indices_from(mask)] = True
-                                    fig=plt.figure()
+                                    #mask = np.zeros_like(corrs)
+                                    #mask[np.triu_indices_from(mask)] = True
+                                    plt.figure()
                                     
-                                    heatmap=sns.heatmap(corrs, cmap='Spectral_r', mask=mask, square=True, vmin=-.5, vmax=.5)
-
-                                    varnames=str(varsplit)
-                                    defname=varnames.replace('[','')
-                                    defname=varnames.replace(']','')
-
-                                    plt.title('CORRELATION-MATRIX (HEATMAP):')
-                                    b, t = plt.ylim() # discover the values for bottom and top (Thanks to SalMac86, GitHub, 25.10.19)
-                                    b += 0.5 # Adds 0.5 to the bottom
-                                    t -= 0.5 # Subtracts 0.5 from the top
-                                    plt.ylim(b, t) # updates the ylim(bottom, top) values
-                                    plt.tight_layout()
+                                   
+                                    heatmap=sns.heatmap(corrs, cmap='Spectral_r', annot=False, square=True, vmin=-1, vmax=1)
+                                    heatmap.set(xlabel="", ylabel="")
+                                    heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':15}, pad=12);
+                                    heatmap.invert_yaxis()
+                                    heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=90, horizontalalignment='center')
                                     
+                                    for tick in heatmap.get_yticklabels():
+                                        tick.set_rotation(0)
+
+        
+                                    #varnames=str(varsplit)
+                                    #defname=varnames.replace('[','')
+                                    #defname=varnames.replace(']','')
+                                    #plt.title('CORRELATION-MATRIX (HEATMAP):')
+                                    #b, t = plt.ylim() # discover the values for bottom and top (Thanks to SalMac86, GitHub, 25.10.19)
+                                    #b += 0.5 # Adds 0.5 to the bottom
+                                    #t -= 0.5 # Subtracts 0.5 from the top
+                                    #plt.ylim(b, t) # updates the ylim(bottom, top) values
+                                    #plt.tight_layout()
+                                    #plt.show()
+                                  
                                     output_folder=valCorrelation['correlation_output']
-                                    fig.savefig(os.path.join(output_folder, 'correlation-heatmap_') + var+'.png', dpi=400)
-                                    plt.close(fig)
+                                    output_folder=os.path.abspath(output_folder)
+                                    new_filename=str(os.path.join(output_folder, 'Correlation-heatmap_') + now +'.png')
+                                    
+                                    plt.savefig(new_filename, dpi=300, bbox_inches='tight')
+                                    #plt.close(fig)
                                     fig=None
                                     print('')
                                     print('Heatmap saved')
 
                                 if valCorrelation['matrix']==True and valCorrelation['corr_output_yes']==True and valCorrelation['correlation_output'] !='':
-
+                                    list_variable_names=plot.columns.values.tolist() 
+                                    plot.insert(loc=0, column='Variables', value=list_variable_names)
+                                    print('Matrix')
+                                    
                                     engine = 'xlsxwriter'
-                                    with pd.ExcelWriter(os.path.join(output_folder, 'correlation-plot_') +var+'.xlsx', engine=engine) as writer:
+                                    with pd.ExcelWriter(os.path.join(output_folder, 'correlation-plot_') + '_' + now + '.xlsx', engine=engine) as writer:
                                         description.to_excel(writer, sheet_name="pearson r and p-values", index = None, header=False, startrow=0)
                                         plot.to_excel(writer, sheet_name="pearson r and p-values", index = None, header=True, startrow= 8)
                                     
@@ -673,17 +686,17 @@ try:
                 [sg.Text('Enter independent variable(s) (IVs) by name', font=('bold'))],
                 [sg.Text('Variable names are defined by the Column headers (row 1) in the dataset.')],
                 [sg.Text('For multiple regression, separate IVs by commas (no blank spaces).')],
-                [sg.InputText('', key='iv')],
-                [sg.Text('Enter dependent variable (DV).', font=('bold'))],
+                [sg.InputText('', size=(70,1), key='iv')],
+                [sg.Text('Enter dependent variable (DV) and alternatively weight variable:.', font=('bold'))],
+                [sg.InputText('', size=(50,1), key='dv'), sg.Text('Weight:'), sg.InputText('', size=(10,1), key='weight')],
                 [sg.Text('Check to get standardized coeff. (Beta): '), sg.Radio('B', "RADIO1", key="std_no", default=True, size=(4,1)),  sg.Radio('Beta', "RADIO1", key="std_yes", default=False, size=(8,1))],
-                [sg.InputText('', key='dv')],
                 [sg.Text('Export output: ', font=('bold'), size=(15,1)), sg.Radio('No: ', 'RADIO2', key='regression_output_no', default=True, size=(13,1)), sg.Radio('Yes: ', 'RADIO2', key='regression_output_yes', default=False, size=(13,1))],
                 [sg.Text('Select output formats:', font=('bold'))],
                 [sg.Checkbox('Regression plots', key='regression_plots', default=False, size=(13,1)), sg.Checkbox('Table', key='table', default=False, size=(13,1)), sg.Checkbox('VIF values (multiple regression only)', key='vif', default=False, size=(25,1))],
                 [sg.Text('')],
                 
                 [sg.Text('Select output folder:', font=('bold'))],
-                [sg.InputText('', key='regression_output'), sg.FolderBrowse()],
+                [sg.InputText('', size=(70,1), key='regression_output'), sg.FolderBrowse()],
                 [sg.Button('Continue'), sg.Button('Back')],
                 [sg.Text('')]]
 
@@ -707,7 +720,7 @@ try:
                 
                 if evRegression=='Check available variables':
                     variables=list(data_df.columns)
-                    separator = ', '
+                    separator = ','
                     print('Available variables in dataset:')
                     print(separator.join(variables))
                     print('')
@@ -732,6 +745,7 @@ try:
 
                 elif (evRegression=='Continue') and (valRegression['regression_plots']==False) and (valRegression['regression_output_yes']==True) and (valRegression['table']==False) and (valRegression['vif']==False):
                     popup_break(evRegression, 'Please select output format')
+                
 
                 elif (evRegression=='Continue' and valRegression['regression_output']=='' and valRegression['regression_output_yes']==True):
                     popup_break(evRegression, 'Please select output folder')
@@ -743,14 +757,21 @@ try:
                 elif (evRegression=='Continue'):
                     iv=valRegression['iv']
                     iv=f'{iv}'
+                    
                     #''.join(e for e in iv if e.isalnum())
                     #iv.strip() #Removes formatting and whitespace
                     
                     #iv=iv.replace(' ', '')
                     dv=valRegression['dv']
+                    weight=valRegression['weight']
+                    weight=f'{weight}'
                     
                     #Fix copy paste errors from variables overview:
-                    var=f'{iv},{dv}'
+                    if (weight!=""):
+                        var=f'{iv},{dv},{weight}'
+                    else:
+                        var=f'{iv},{dv}'
+                        
                     if var.endswith(','):
                         var=var.rstrip(',')
                     if var.endswith(', '):
@@ -761,7 +782,10 @@ try:
                     var=var.replace(' ','')
                     var=var.strip()
                     varsplit=var.split(',')
-                    
+
+                    now='{date:%Y-%m-%d_%H-%M-%S}'.format( date=datetime.datetime.now() )
+                    now=f'{now}'
+
                     data=data_df[varsplit]
                     #Only numeric values: 
                     data = data.apply(pd.to_numeric, errors='coerce')
@@ -774,8 +798,16 @@ try:
                         print('')
                         print('NB: Standardized values and coeffisient.')
                         print('')
-                        # standardizing dataframe
-                        data = data.select_dtypes(include=[np.number]).dropna().apply(stats.zscore)
+                        if valRegression['weight'] !="":
+                            data_main=data.iloc[: , :-1]
+                            data_weight=data[data.columns[-1]]
+                            # standardizing dataframe
+                            #data = data.select_dtypes(include=[np.number]).dropna().apply(stats.zscore)
+                            data_main_z = data_main.apply(zscore)
+                            data=data_main_z.join(data_weight)
+
+                        else:
+                            data = data.apply(zscore)
 
                     
                     #Fjerne andre tegn på tomme celler - virker ikke
@@ -817,22 +849,38 @@ try:
                                 Y=data[dv]
                                 X=data[iv]
                                 
-                                X=sm.add_constant(X)
-                                model=sm.OLS(Y, X).fit()
-                                predictions=model.predict(X)
-                                model.predict(X)
+                                if weight == "":
+                                    
+                                    X=sm.add_constant(X)
+                                    model=sm.OLS(Y, X).fit()
+                                    predictions=model.predict(X)
+                                    model.predict(X)
 
-                                print('Simple regression analysis: ')
-                                print('')
-                                print(model.summary())
-                               
-                                print('Simple regression analysis completed')
-                                print('...')
+                                    print('Simple regression analysis: ')
+                                    print('')
+                                    print(model.summary())
+                                
+                                    print('Simple regression analysis completed')
+                                    print('...')
+                                    
+                                else:
+                                    weight_list = list(data[weight])
+                                    X=sm.add_constant(X)
+                                    model=sm.WLS(Y, X, weights=weight_list).fit()
+                                    #predictions=model.predict(X)
+                                    #model.predict(X)
+
+                                    print('Simple weighted regression analysis: ')
+                                    print('')
+                                    print(model.summary())
+                                
+                                    print('Simple weighted regression analysis completed')
+                                    print('...')
 
                                 if valRegression['regression_output_yes']==True:
 
                                     if valRegression['vif']==True:
-                                        popup_break(evRegression, '"VIF - values" are only available for for simple regression (single DV)')
+                                        popup_break(evRegression, '"VIF - values" are only available for for multiple regression (multiple DVs)')
                     
                                     if valRegression['table']==True:#Make and save table:
                                         #model.summary()##Used with large amounts of variables.
@@ -842,8 +890,18 @@ try:
                                         plt.axis('off')
                                         #plt.show()
                                         
-                                        filename_png=f'Simple_OLS_{iv}_{dv}_table.png'
-                                        filename_pdf=f'Simple_OLS_{iv}_{dv}_table.pdf'
+                                        if (valRegression['std_yes'] == True) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Simple_OLS_{dv}_Beta_weighted_{now}_table.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_Beta_weighted_{now}_table.pdf'
+                                        elif (valRegression['std_yes'] == False) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Simple_OLS_{dv}_B_weighted_{now}_table.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_B_weighted_{now}_table.pdf'
+                                        elif (valRegression['std_yes'] == True) and (valRegression['weight'] == ""):
+                                            filename_png=f'Simple_OLS_{dv}_Beta_{now}_table.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_Beta_{now}_table.pdf'
+                                        else: 
+                                            filename_png=f'Simple_OLS_{dv}_B_{now}_table.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_B_{now}_table.pdf'
                                     
                                         plt.savefig(os.path.join(output_folder, filename_png), dpi=300, format='png', transparent=True)
                                         plt.savefig(os.path.join(output_folder, filename_pdf), dpi=300, format='pdf')
@@ -860,8 +918,18 @@ try:
                                         fig.tight_layout(pad=1.0)
                                         #plt.show()
 
-                                        filename_png=f'Simple_OLS_{iv}_{dv}_table.png'
-                                        filename_pdf=f'Simple_OLS_{iv}_{dv}_table.pdf'
+                                        if (valRegression['std_yes'] == True) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Simple_OLS_{dv}_Beta_weighted_{now}_plot.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_Beta_weighted_{now}_plot.pdf'
+                                        elif (valRegression['std_yes'] == False) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Simple_OLS_{dv}_B_weighted_{now}_plottable.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_B_weighted_{now}_plot.pdf'
+                                        elif (valRegression['std_yes'] == True) and (valRegression['weight'] == ""):
+                                            filename_png=f'Simple_OLS_{dv}_Beta_{now}_plot.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_Beta_{now}_plot.pdf'
+                                        else: 
+                                            filename_png=f'Simple_OLS_{dv}_B_{now}_plot.png'
+                                            filename_pdf=f'Simple_OLS_{dv}_B_{now}_plot.pdf'
                                         
                                         plt.savefig(os.path.join(output_folder, filename_png), dpi=300, format='png', transparent=True)
                                         plt.savefig(os.path.join(output_folder, filename_pdf), dpi=300, format='pdf')
@@ -875,18 +943,32 @@ try:
   
                                 Y=data[dv]
                                 X=data[ivsplit]
+                                if weight == "":
+                                    X=sm.add_constant(X)
+                                    model=sm.OLS(Y, X).fit()
+                                    predictions=model.predict(X)
+                                    model.predict(X)
 
-                                X=sm.add_constant(X)
-                                model=sm.OLS(Y, X).fit()
-                                predictions=model.predict(X)
-                                model.predict(X)
+                                    
+                                    print('Multiple regression analysis: ')
+                                    print('')
+                                    print(model.summary())
+                                    print('Multiple regression analysis completed')
+                                    print('...')
+                                    
+                                else:
+                                    weight_list = list(data[weight])
+                                    X=sm.add_constant(X)
+                                    model=sm.WLS(Y, X, weights=weight_list).fit()
+                                    #predictions=model.predict(X)
+                                    #model.predict(X)
 
+                                    print('Multiple weighted regression analysis: ')
+                                    print('')
+                                    print(model.summary())
                                 
-                                print('Multiple regression analysis: ')
-                                print('')
-                                print(model.summary())
-                                print('Multiple regression analysis completed')
-                                print('...')
+                                    print('Multiple weighted regression analysis completed')
+                                    print('...')
 
                                 if valRegression['regression_output_yes']==True:
 
@@ -898,11 +980,29 @@ try:
                                         plt.axis('off')
                                         #plt.show()
 
-                                        filename_png=f'Multiple_OLS_{iv}_{dv}_table.png'
-                                        filename_pdf=f'Multiple_OLS_{iv}_{dv}_table.pdf'
+                                        #Filenames with all variables:
+                                        #filename_png=f'Multiple_OLS_{iv}_{dv}_table.png'
+                                        #filename_pdf=f'Multiple_OLS_{iv}_{dv}_table.pdf'
+                                        #Filenames with dv + datetime: 
+                                        if (valRegression['std_yes'] == True) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Multiple_OLS_{dv}_Beta_weighted_{now}_table.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_Beta_weighted_{now}_table.pdf'
+                                        elif (valRegression['std_yes'] == False) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Multiple_OLS_{dv}_B_weighted_{now}_table.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_B_weighted_{now}_table.pdf'
+                                        elif (valRegression['std_yes'] == True) and (valRegression['weight'] == ""):
+                                            filename_png=f'Multiple_OLS_{dv}_Beta_{now}_table.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_Beta_{now}_table.pdf'
+                                        else: 
+                                            filename_png=f'Multiple_OLS_{dv}_B_{now}_table.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_B_{now}_table.pdf'
+
+                                        
+                                        print(filename_png)
+                                        print(filename_pdf)
                                         
                                         fig.savefig(os.path.join(output_folder, filename_png), dpi=300, format='png', transparent=True)
-                                        fig.savefig(os.path.join(output_folder, filename_pdf), dpi=300, format='pdf', transparent=True)
+                                        fig.savefig(os.path.join(output_folder, filename_pdf), dpi=300, format='pdf')
                                         plt.close(fig)
                                         print('Table saved')
                                         print ('...')
@@ -914,8 +1014,24 @@ try:
                                         fig.tight_layout(pad=1.0)
                                         #plt.show()
                                         
-                                        filename_png=f'Multiple_OLS_{iv}_{dv}_table.png'
-                                        filename_pdf=f'Multiple_OLS_{iv}_{dv}_table.pdf'
+                                        #Filenames with all variables:
+                                        #filename_png=f'Multiple_OLS_{iv}_{dv}_table.png'
+                                        #filename_pdf=f'Multiple_OLS_{iv}_{dv}_table.pdf'
+                                        #Filenames with dv + datetime:
+                                        
+                                        if (valRegression['std_yes'] == True) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Multiple_OLS_{dv}_Beta_weighted_{now}_plot.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_Beta_weighted_{now}_plot.pdf'
+                                        elif (valRegression['std_yes'] == False) and (not valRegression['weight'] == ""):
+                                            filename_png=f'Multiple_OLS_{dv}_B_weighted_{now}_plot.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_B_weighted_{now}_plot.pdf'
+                                        elif (valRegression['std_yes'] == True) and (valRegression['weight'] == ""):
+                                            filename_png=f'Multiple_OLS_{dv}_Beta_{now}_plot.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_Beta_{now}_plot.pdf'
+                                        else: 
+                                            filename_png=f'Multiple_OLS_{dv}_B_{now}_plot.png'
+                                            filename_pdf=f'Multiple_OLS_{dv}_B_{now}_plot.pdf'
+                                        
 
                                         plt.savefig(os.path.join(output_folder, filename_png), dpi=300, format='png', transparent=True)
                                         plt.savefig(os.path.join(output_folder, filename_pdf), dpi=300, format='pdf')
@@ -924,7 +1040,10 @@ try:
                                         print('Plots saved')
                                         print('...')
 
-                                    if valRegression['vif']==True: #Make and save VIF values:
+                                    if valRegression['vif']==True: #Make and save VIF values
+                                                        
+                                        if (evRegression=='Continue') and not (valRegression['weight']==""):
+                                            popup_break(evRegression, 'VIF values only available for non-weighted data')
                                             
                                         vif = pd.DataFrame()
                                         vif["VIF Factor"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
@@ -934,7 +1053,19 @@ try:
                                         df=pd.DataFrame(form)
                                         engine = 'xlsxwriter'
                                         
-                                        filename_xlsx=f'Multiple_OLS_{iv}_{dv}_VIF_falues.xlsx'
+                                        #Filename with all variables:
+                                        #filename_xlsx=f'Multiple_OLS_{iv}_{dv}_VIF_falues.xlsx'
+                                        #Filename with dv + datetime:
+
+                                        #if (valRegression['std_yes'] == True) and (not valRegression['weight'] == ""):
+                                        #    filename_xlsx=f'Multiple_OLS_{dv}_Beta_weighted_VIF_values_{now}.xlsx'
+                                        #elif (valRegression['std_yes'] == False) and (not valRegression['weight'] == ""):
+                                        #    filename_xlsx=f'Multiple_OLS_{dv}_B_weighted_VIF_values_{now}.xlsx'
+                                        if (valRegression['std_yes'] == True) and (valRegression['weight'] == ""):
+                                            filename_xlsx=f'Multiple_OLS_{dv}_Beta_VIF_values_{now}.xlsx'
+                                        else: 
+                                            filename_xlsx=f'Multiple_OLS_{dv}_B_VIF_values_{now}.xlsx'
+
                 
                                         
                                         #print(df)
@@ -943,7 +1074,7 @@ try:
 
                                         print('VIF values saved')
                                         print('...')
-                            
+                                
                         break
 
         #Mediation
@@ -961,13 +1092,13 @@ try:
                 [sg.Text(chosen_filename)],
                 [sg.Button('Check available variables'), sg.Button('Step back and change dataset')],
                 [sg.Text('')],
-                [sg.Text('Type independent variable name (single):', font=('bold'))],
+                [sg.Text('Enter independent variable name (single):', font=('bold'))],
 
                 [sg.InputText('', key='iv', size=(20,1))],
 
                 [sg.Text('Enter mediating variable (single):', font=('bold'))],
                 [sg.InputText('', key='m', size=(20,1))],
-                [sg.Text('Enter names of covariate (single, optional):', font=('bold'))],
+                [sg.Text('Enter covariate variable (single, optional):', font=('bold'))],
                 [sg.InputText('', key='cov', size=(20,1))],
 
                 [sg.Text('Enter dependent variable (single):', font=('bold'))],
@@ -1403,12 +1534,12 @@ try:
 
 
                                     with pd.ExcelWriter(new_file, engine=engine) as writer:
-                                        header.to_excel(writer, sheet_name="Results", startcol=1, startrow=0)
-                                        header_1.to_excel(writer, sheet_name="Results", startcol=1, startrow=1)
-                                        header_2.to_excel(writer, sheet_name="Results", startcol=1, startrow=2)
-                                        direct_summary.to_excel(writer, sheet_name="Results", startcol=-1, startrow=5, header=True)
-                                        header_3.to_excel(writer, sheet_name="Results", startcol=2, startrow=8)
-                                        indirect_summary.to_excel(writer, sheet_name="Results", startcol=-2, startrow=9, header=True)
+                                        header.style.set_properties({'text-align': 'left'}).to_excel(writer, sheet_name="Results", startcol=1, startrow=0)
+                                        header_1.style.set_properties({'text-align': 'left'}).to_excel(writer, sheet_name="Results", startcol=1, startrow=1)
+                                        header_2.style.set_properties({'text-align': 'left'}).to_excel(writer, sheet_name="Results", startcol=1, startrow=2)
+                                        direct_summary.style.set_properties({'text-align': 'left'}).to_excel(writer, sheet_name="Results", startcol=-1, startrow=5, header=True)
+                                        header_3.style.set_properties({'text-align': 'left'}).to_excel(writer, sheet_name="Results", startcol=2, startrow=8)
+                                        indirect_summary.style.set_properties({'text-align': 'left'}).to_excel(writer, sheet_name="Results", startcol=-2, startrow=9, header=True)
 
                                     print('Values saved to Excel')
                                     print('...')
@@ -1481,7 +1612,7 @@ try:
 
                 if evCompute=='Check available variables':
                     variables=list(data_df.columns)
-                    separator = ', '
+                    separator = ','
                     print('Available variables in dataset:')
                     print(separator.join(variables))
                     print('')
@@ -1498,7 +1629,8 @@ try:
                     
                 elif (evCompute=='Continue' and (valCompute['compute_variables']=='' and valCompute['del_variables']=='')):
                     popup_break(evCompute, 'Choose variables')
-
+                elif (evCompute=='Continue' and (valCompute['new_variable']=='' and not valCompute['compute_variables']=='')):
+                    popup_break(evCompute, 'Choose new variable name')
 
                 #Valdidate variables supplied
                 elif (evCompute=='Continue'):
@@ -1529,7 +1661,7 @@ try:
                                 len_cont=len(list_cont)
                                 
                                 if not len_cont == 2:
-                                    popup_break(evCompute, 'Please select only one variable and one value. Selected value must be an integer.')
+                                    popup_break(evCompute, 'Please select one variable and one value. Selected value must be an integer or string.')
                                 dict_value=int(list_cont[-1])
                                 var=str(list_cont[0])
                                 
@@ -1537,13 +1669,12 @@ try:
                                     response='no'
                                 
                             if (evCompute=='Continue') and (response =='no'):
-                                popup_break(evCompute, 'Selected variable(s) not in dataset')    
+                                popup_break(evCompute, 'Selected variable not in dataset')    
 
                             if valCompute['compute_filename'] == '':
                                 new_filename=chosen_filename
                             else:
                                 new_filename=valCompute['compute_filename']
-
                             if not (new_filename.endswith('csv') or new_filename.endswith('xlsx')):
                                 popup_break(evCompute, 'Please add a valid suffix to your filename.')
 
@@ -1561,13 +1692,13 @@ try:
                                 
 
                                 for i in data_df.index:
-                                    if (isinstance(data_df.at[i, var], int)):
-                                        if data_df.at[i, var]==dict_value: 
-                                            data_df.at[i, new] = 1
-                                        else:
-                                            data_df.at[i, new] = 0
+                                    #if (isinstance(data_df.at[i, var], int)):
+                                    if data_df.at[i, var]==dict_value: 
+                                        data_df.at[i, new] = 1
                                     else:
-                                        data_df.at[i, new] = 'NaN'
+                                        data_df.at[i, new] = 0
+                                    #else:
+                                        #data_df.at[i, new] = 'NaN'
 
                             if not valCompute['compute_filename'] == '':
                                 if valCompute['compute_filename'].endswith('.csv'):
@@ -1617,10 +1748,12 @@ try:
                             if response =='no':
                                 popup_break(evCompute, 'Selected variable(s) not in dataset')   
 
+                            print('Old:')
                             print(data_df)
+                            print('')
 
                             data_df=data_df.drop(del_var, axis=1, inplace=True)
-                            print('Ny:')
+                            print('New:')
                             print(data_df)
 
                             
@@ -1648,6 +1781,8 @@ try:
                             elif data_in.endswith('.xlsx'):
                                 suffix='xlsx'
 
+                            print('')
+                            print('List of variables:')
                             print(data_df.columns)
                             
                             if suffix=='xlsx':
@@ -1718,7 +1853,7 @@ try:
 
                 if evFactor=='Check available variables':
                     variables=list(data_df.columns)
-                    separator = ', '
+                    separator = ','
                     print('Available variables in dataset:')
                     print(separator.join(variables))
                     print('')
@@ -1732,62 +1867,71 @@ try:
                     break       
 
                 #Valdidate variables supplied
-                if (evFactor=='Continue'):
 
-                    if(valFactor['bartlett']==False and valFactor['kmo']==False and valFactor['kai_crit']==False and valFactor['exploratory']==False and valFactor['confirmatory']==False):
-                        popup_break(evFactor, 'Please choose action.')
-                    elif(valFactor['factor_table']==True or valFactor['factor_scree_pdf']==True or valFactor['factor_scree_png']==True) and valFactor['factor_filename']=='':
-                        popup_break(evFactor, 'Please enter a name for the export file.')
-                    elif (valFactor['exploratory']==True or valFactor['bartlett']==True or valFactor['kmo']==True or valFactor['confirmatory']==True) and (valFactor['factor_scree_png']==True or valFactor['factor_scree_pdf']==True):
-                        popup_break(evFactor, 'Scree plots are only available for the "Get factors and eigenvalues" option')
-                    elif(valFactor['confirmatory']==True and valFactor['nr_factors']==''):
-                        valFactor['confirmatory']=False
-                        popup_break(evFactor, 'Please enter number of factors.')
+                if(evFactor=='Continue' and valFactor['bartlett']==False and valFactor['kmo']==False and valFactor['kai_crit']==False and valFactor['exploratory']==False and valFactor['confirmatory']==False):
+                    popup_break(evFactor, 'Please choose action.')
+                elif(evFactor=='Continue' and valFactor['factor_table']==True or valFactor['factor_scree_pdf']==True or valFactor['factor_scree_png']==True) and valFactor['factor_filename']=='':
+                    popup_break(evFactor, 'Please enter a name for the export file.')
+                elif (evFactor=='Continue' and valFactor['exploratory']==True or valFactor['bartlett']==True or valFactor['kmo']==True or valFactor['confirmatory']==True) and (valFactor['factor_scree_png']==True or valFactor['factor_scree_pdf']==True):
+                    popup_break(evFactor, 'Scree plots are only available for the "Get factors and eigenvalues" option')
+                elif(evFactor=='Continue' and valFactor['confirmatory']==True and valFactor['nr_factors']==''):
+                    #valFactor['confirmatory']=False
+                    popup_break(evFactor, 'For conformatory analysis, please enter number of factors.') 
+                          
+                elif evFactor=='Continue':
+                    #evFactor=False
+                    
+                    while True:      
+                        validvariables=list(data_df.columns)
+                        filename=valFactor['factor_filename'] 
 
-                    validvariables=list(data_df.columns)
-                    filename=valFactor['factor_filename']        
-
-                    if valFactor['factor_variables'] == '':
-                        varsplit=validvariables 
-                        data=data_df
-                        #convert to numeric values
-                        data = data.apply(pd.to_numeric, errors='coerce')
-                        #data = data[data.applymap(CheckInt).all(axis=1)].astype(int)
-                        data = data.dropna(axis=0)
-
-                    elif valFactor['factor_variables'] != '':
-                        var_=valFactor['factor_variables']
-                        if var_.startswith('-'):
-                            var=var_[1:]
-                            var=var.replace(" ", "")
-                            var=str(var)
-                            varsplit=var.split(",")
-                            data=data_df.drop(varsplit, axis=1)
-                            #convet to numeric values
+                        if valFactor['factor_variables'] == '':
+                            varsplit=validvariables
+                            varsplit=validvariables.replace(', ', ',')
+                            data=data_df
+                            #convert to numeric values
                             data = data.apply(pd.to_numeric, errors='coerce')
                             #data = data[data.applymap(CheckInt).all(axis=1)].astype(int)
                             data = data.dropna(axis=0)
 
                         else:
-                            var=var_
-                            var=var.replace(" ", "")
-                            var=str(var)
-                            varsplit=var.split(",")
-                            data=data_df[varsplit]
-                            #convet to numeric values
-                            data = data.apply(pd.to_numeric, errors='coerce')
-                            #data = data[data.applymap(CheckInt).all(axis=1)].astype(int)
-                            data = data.dropna(axis=0)
+                            var_=valFactor['factor_variables']
+                            if var_.startswith('-'):
+                                var=var_[1:]
+                                if var.endswith(','):
+                                    var=var.rstrip(',')
+                                if var.startswith(','):
+                                    var=var.lstrip(',')
+                                var=var.replace(', ', ',')
+                                var=var.replace(' ','')
+                                var=var.strip()
+                                varsplit=var.split(',')
+                                var=str(var)
+                                varsplit=var.split(',')
+                                data=data_df.drop(varsplit, axis=1)
+                                #convet to numeric values
+                                data = data.apply(pd.to_numeric, errors='coerce')
+                                #data = data[data.applymap(CheckInt).all(axis=1)].astype(int)
+                                data = data.dropna(axis=0)
 
-                    while True:
-                        response='yes'
-                            
-                        for string in varsplit:    
-                            if string not in validvariables:
-                                response='no'
-                        
-                        if response=='no':
-                            popup_break(evFactor, 'Error: One or more entered variables not in dataset')
+                            else:
+                                var=var_
+                                if var.endswith(','):
+                                    var=var.rstrip(',')
+                                if var.startswith(','):
+                                    var=var.lstrip(',')
+                                var=var.replace(', ', ',')
+                                var=var.replace(' ','')
+                                var=var.strip()
+                                varsplit=var.split(',')
+                                #var=str(var)
+                                #varsplit=var.split(",")
+                                data=data_df[varsplit]
+                                #convet to numeric values
+                                data = data.apply(pd.to_numeric, errors='coerce')
+                                #data = data[data.applymap(CheckInt).all(axis=1)].astype(int)
+                                data = data.dropna(axis=0)
+
 
                         #Convert to numeric
                         ##data=data.apply(pd.to_numeric, downcast='integer', errors='coerce')
@@ -1809,349 +1953,363 @@ try:
                                 str_variables=str_variables + ', ' + str
                         
                         nr_variables=len(fact_variables)
-                        fa=FactorAnalyzer(rotation=None)
-                        factor_summary=fa.fit(data)
-                        loadings=fa.loadings_
-                        fa.fit(data)
-                        ev, v = fa.get_eigenvalues()
 
-                        if valFactor['factor_output'] == '':
-                            out_folder=os.path.dirname(data_in)
-                        else:
-                            out_folder=valFactor['factor_output'] 
+                        response='yes'
+
+                        for string in varsplit:    
+                            if string not in validvariables:
+                                response='no'
                         
-                        #Bartlett's test
-                        if valFactor['bartlett']==True:
-                            print("Bartlett's test:")
+                        if response=='no':
+                            popup_break(evFactor, 'Error: One or more entered variables not in dataset')
 
-                            chi_square_value,p_value=calculate_bartlett_sphericity(data)
-
-                            chi=chi_square_value
-                            p_val=p_value
-                            bartlett_info=[]
-                            bartlett_info.append('Test: Bartlett')
-                            bartlett_info.append('')
-                            bartlett_info.append(str_variables)
-                            bartlett_info.append('')
-                            str_chi=f'{chi:.4f}'
-                            chi_item='Chi square value: ' + str_chi
-                            print(chi_item)
-                            bartlett_info.append(chi_item)
-                            str_p=f'{p_val:.4f}'
-                            p_item='p-value: ' + str_p
-                            print(p_item)
-                            bartlett_info.append(p_item)
-
-                            print('NB: Valid if p-value is significant')
-                            print('...')
-                            bartlett_df=pd.DataFrame(bartlett_info)
+                        #while True:
                         
+                        if response=='yes':
+                    
+                            if valFactor['factor_output'] == '':
+                                out_folder=os.path.dirname(data_in)
+                            else:
+                                out_folder=valFactor['factor_output'] 
                             
-                            if valFactor['factor_table']==True:
-                                engine = 'xlsxwriter'
-                                filename=valFactor['factor_filename']
-                                new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                    bartlett_df.to_excel(writer, sheet_name="Chi and p", index = False, header=False, startrow=0, startcol=0)
-                                print('Output saved to Excel file')
+                                
+                            fa=FactorAnalyzer(rotation=None)
+                            factor_summary=fa.fit(data)
+                            loadings=fa.loadings_
+                            fa.fit(data)
+                            ev, v = fa.get_eigenvalues()
+                            #Bartlett's test
+                            
+                            if valFactor['bartlett']==True:
+                                print("Bartlett's test:")
+
+                                chi_square_value,p_value=calculate_bartlett_sphericity(data)
+
+                                chi=chi_square_value
+                                p_val=p_value
+                                bartlett_info=[]
+                                bartlett_info.append('Test: Bartlett')
+                                bartlett_info.append('')
+                                bartlett_info.append(str_variables)
+                                bartlett_info.append('')
+                                str_chi=f'{chi:.4f}'
+                                chi_item='Chi square value: ' + str_chi
+                                print(chi_item)
+                                bartlett_info.append(chi_item)
+                                str_p=f'{p_val:.4f}'
+                                p_item='p-value: ' + str_p
+                                print(p_item)
+                                bartlett_info.append(p_item)
+
+                                print('NB: Valid if p-value is significant')
+                                print('...')
+                                bartlett_df=pd.DataFrame(bartlett_info)
+                            
+                                
+                                if valFactor['factor_table']==True:
+                                    engine = 'xlsxwriter'
+                                    filename=valFactor['factor_filename']
+                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                        bartlett_df.to_excel(writer, sheet_name="Chi and p", index = False, header=False, startrow=0, startcol=0)
+                                    print('Output saved to Excel file')
+                                    print('')
+                            
+                            #KMO test
+                            if valFactor['kmo']==True:
+                                kmo_all,kmo_model=calculate_kmo(data)
+                                #print('Hele')
+                                #kmo_all
+                                #kmo_model
+                                str_kmo=f'{kmo_model}'
+                                print('Value of KMO: ' + str_kmo)
+                                print('NB: KMO < 0.6 is considered inadequate')
+                                print('...')
+                                
+                                kmo_list=[]
+                                kmo_list.append('KMO-values:')
+                                kmo_list.append('')
+                                kmo_list.append(str_variables)
+                                kmo_list.append('')
+                                kmo_list.append('Value of KMO: ' + str_kmo)
+                                kmo_list.append('NB: KMO < 0.6 is considered inadequate')
+                                kmo_df=pd.DataFrame(kmo_list)
+
+                                if valFactor['factor_table']==True:
+                                    engine = 'xlsxwriter'
+                                    filename=valFactor['factor_filename']
+                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                        kmo_df.to_excel(writer, sheet_name="kmo", index = False, header=False, startrow=0, startcol=0)
+                                    print('Output saved to Excel file')
+                                    print('')
+
+                            #Get number of factors
+                            if valFactor['kai_crit']==True:
+                                
+                                print('All eigenvalues:')
+                                eigenvalues_df=(pd.DataFrame(ev, index=fact_variables))
                                 print('')
-                        
-                        #KMO test
-                        if valFactor['kmo']==True:
-                            kmo_all,kmo_model=calculate_kmo(data)
-                            #print('Hele')
-                            #kmo_all
-                            #kmo_model
-                            str_kmo=f'{kmo_model}'
-                            print('Value of KMO: ' + str_kmo)
-                            print('NB: KMO < 0.6 is considered inadequate')
-                            print('...')
-                            
-                            kmo_list=[]
-                            kmo_list.append('KMO-values:')
-                            kmo_list.append('')
-                            kmo_list.append(str_variables)
-                            kmo_list.append('')
-                            kmo_list.append('Value of KMO: ' + str_kmo)
-                            kmo_list.append('NB: KMO < 0.6 is considered inadequate')
-                            kmo_df=pd.DataFrame(kmo_list)
-
-                            if valFactor['factor_table']==True:
-                                engine = 'xlsxwriter'
-                                filename=valFactor['factor_filename']
-                                new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                    kmo_df.to_excel(writer, sheet_name="kmo", index = False, header=False, startrow=0, startcol=0)
-                                print('Output saved to Excel file')
+                                
+                                print(eigenvalues_df)
+                                
+                                nr_eigenvalues_above_1=[]
+                                for index, row in eigenvalues_df.iterrows():
+                                    if float(row[0])>1:
+                                        nr_eigenvalues_above_1.append(row)
+                                
+                                nr=len(nr_eigenvalues_above_1)
+                                
+                                print('') 
+                                print('Number of factors should be number of eigenvalues > 1 (the Kaiser criterion).')
                                 print('')
-
-                        #Get number of factors
-                        if valFactor['kai_crit']==True:
-                            
-                            print('All eigenvalues:')
-                            eigenvalues_df=(pd.DataFrame(ev, index=fact_variables))
-                            print('')
-                            
-                            print(eigenvalues_df)
-                            
-                            nr_eigenvalues_above_1=[]
-                            for index, row in eigenvalues_df.iterrows():
-                                if float(row[0])>1:
-                                    nr_eigenvalues_above_1.append(row)
-                            
-                            nr=len(nr_eigenvalues_above_1)
-                            
-                            print('') 
-                            print('Number of factors should be number of eigenvalues > 1 (the Kaiser criterion).')
-                            print('')
-                            nr_str=f'{nr}'
-                            print('Eigenvalues > 1 = ' + nr_str)
-                            print('...')
-
-                            kaicrit_list=[]
-                            kaicrit_list.append('Eigenvalues:')
-                            kaicrit_list.append('')
-                            kaicrit_list.append(str_variables)
-                            kaicrit_list.append('')
-                            info_df=pd.DataFrame(kaicrit_list)
-
-                            if valFactor['factor_table']==True:
-                                engine = 'xlsxwriter'
-                                
-                                with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                    info_df.to_excel(writer, sheet_name="Eigenvalues", index = False, header=False, startrow=0, startcol=0)
-                                    eigenvalues_df.to_excel(writer, sheet_name="Eigenvalues", index = True, header=False, startrow=5, startcol=0)
-                                
-                                print('Eigenvalues saved to Excel file')
-                                print('')
-
-                            if valFactor['factor_scree_png']==True: 
-                                plt.scatter(range(1,data.shape[1]+1),ev)
-                                plt.plot(range(1,data.shape[1]+1),ev)
-                                plt.title('Scree Plot')
-                                plt.xlabel('Factors')
-                                plt.ylabel('Eigenvalues')
-                                plt.grid()
-                                
-                                plt.savefig(os.path.join(out_folder, filename + '.png'), dpi=300, format='png', transparent=True)
-                                fig=None
-                                
-                                print('Scree plot saved as png file')
+                                nr_str=f'{nr}'
+                                print('Eigenvalues > 1 = ' + nr_str)
                                 print('...')
 
-                            if valFactor['factor_scree_pdf']==True:  
-                                plt.scatter(range(1,data.shape[1]+1),ev)
-                                plt.plot(range(1,data.shape[1]+1),ev)
-                                plt.title('Scree Plot')
-                                plt.xlabel('Factors')
-                                plt.ylabel('Eigenvalue')
-                                plt.grid()
-                                
-                                plt.savefig(os.path.join(out_folder, filename + '.pdf'), dpi=300, format='pdf', transparent=True)
-                                fig=None
-                                
-                                print('Scree plot saved as PDF file')
-                                print('...')
-
-                        #Exploratory analysis
-                        if valFactor['exploratory']==True:
-                            print('Factor loadings:')
-                            print('')
-                            loadings_df=pd.DataFrame(loadings, index=fact_variables)
-                            print(loadings_df)
-                            print('...')
-
-                            if valFactor['factor_table']==True:
-                                list_info=[]
-                                list_info.append('Factor loadings, exploratory analysis:')
-                                list_info.append('')
-                                list_info.append(str_variables)
-                                list_info.append('')
-                                df_info=pd.DataFrame(list_info)
-                                new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                engine = 'xlsxwriter'
-                                
-                                with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                    df_info.to_excel(writer, sheet_name="Factor loadings", index = False, header=False, startrow=0, startcol=0)
-                                    loadings_df.to_excel(writer, sheet_name="Factor loadings", index = True, header=False, startrow=5, startcol=0)
-                                
-                                print('')
-                                print('Factor loadings saved as Excel file.') 
-                                print('...')   
-                                
-
-                        #Confirmatory analysis
-                        if valFactor['confirmatory']==True:
-    
-                            n_fact=int(valFactor['nr_factors'])
-                            n_fact_str=f"{valFactor['nr_factors']}"
-
-                            list_factors=[]
-                            n=1
-
-                            while n < (n_fact + 1):
-                                factor=f'Factor {n}'
-                                list_factors.append(factor)
-                                n+=1 
-
-                            
-                            #Varimax rotation
-                            if valFactor['varimax']==True:
-                                rot="varimax"
-                                print('Rotation: ' + rot)
-                                print('Number of factors: ' + n_fact_str)
-                                fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
-                                fa.fit(data)
-                                rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
-                                rot_df.columns=list_factors
-                                print('')
-                                print(rot_df)
-                                print('')
-                                print('Variance and communalities:')
-                                print('')
-                                rot_var=pd.DataFrame(fa.get_factor_variance(), index=['Variance','Proportional Var','Cumulative Var'])
-                                rot_var.columns=list_factors
-                                print(rot_var)
-                                print('')
-                                rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
-                                print(rot_com)
-                                print('')
+                                kaicrit_list=[]
+                                kaicrit_list.append('Eigenvalues:')
+                                kaicrit_list.append('')
+                                kaicrit_list.append(str_variables)
+                                kaicrit_list.append('')
+                                info_df=pd.DataFrame(kaicrit_list)
 
                                 if valFactor['factor_table']==True:
-                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
                                     engine = 'xlsxwriter'
-                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                        rot_df.to_excel(writer, sheet_name="Varimax rotation", index = True, header=True, startrow=0, startcol=0)
-                                    print('Factor loadings saved to Excel file')
-                                    print('')
-
-                            #Promax rotation
-                            elif valFactor['promax']==True:
-                                rot="promax"
-                                print('Rotation: ' + rot)
-                                print('Number of factors: ' + n_fact_str)
-                                fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
-                                fa.fit(data)
-                                rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
-                                rot_df.columns=list_factors
-                                print('')
-                                print(rot_df)
-                                print('')
-                                print('Variance and communalities:')
-                                print('')
-                                rot_var=pd.DataFrame(fa.get_factor_variance(), index=['Variance','Proportional Var','Cumulative Var'])
-                                rot_var.columns=list_factors
-                                print(rot_var)
-                                print('')
-                                rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
-                                print(rot_com)
-                                print('')
-
-                                if valFactor['factor_table']==True:
-                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                    engine = 'xlsxwriter'
-                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                        rot_df.to_excel(writer, sheet_name="Promax rotation", index = True, header=True, startrow=0, startcol=0)
-                                    print('Factor loadings saved to Excel file')
-                                    print('')
-
-                            #Oblimin rotation
-                            elif valFactor['oblimin']==True:
-                                rot="oblimin"
-                                print('Rotation: ' + rot)
-                                print('Number of factors: ' + n_fact_str)
-                                fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
-                                fa.fit(data)
-                                rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
-                                rot_df.columns=list_factors
-                                print('')
-                                print(rot_df)
-                                print('')
-                                print('Variance and communalities:')
-                                print('')
-                                rot_var=pd.DataFrame(fa.get_factor_variance(), index=['Variance','Proportional Var','Cumulative Var'])
-                                rot_var.columns=list_factors
-                                print(rot_var)
-                                print('')
-                                rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
-                                print(rot_com)
-                                print('')
-
-                                if valFactor['factor_table']==True:
-                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                    engine = 'xlsxwriter'
-                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                        rot_df.to_excel(writer, sheet_name="Oblimin rotation", index = True, header=True, startrow=0, startcol=0)
-                                    print('Factor loadings saved to Excel file')
-                                    print('')
-
-                            #Oblimax rotation
-                            elif valFactor['oblimax']==True:
-                                rot="oblimax"
-                                print('Rotation: ' + rot)
-                                print('Number of factors: ' + n_fact_str)
-                                fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
-                                fa.fit(data)
-                                rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
-                                rot_df.columns=list_factors
-                                print('')
-                                print(rot_df)
-                                print('')
-                                print('Variance and communalities:')
-                                print('')
-                                rot_var=pd.DataFrame(fa.get_factor_variance(), index=[f"{'Variance':>20}",f"{'Proportional Var':>20}",f"{'Cumulative Var':>20}"])
-                                rot_var.columns=list_factors
-                                print(rot_var)
-                                print('')
-                                rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
-                                print(rot_com)
-                                print('')
-
-                                if valFactor['factor_table']==True:
-                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                    engine = 'xlsxwriter'
-                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                        rot_df.to_excel(writer, sheet_name="Oblimax rotation", index = True, header=True, startrow=0, startcol=0)
-                                    print('Factor loadings saved to Excel file')
-                                    print('')
-
-                            #Without rotation
-                            elif valFactor['none']==True:
-                                rot=None
-                                print('Rotation: None')
-                                print('Number of factors: ' + n_fact_str)
-                                fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
-                                fa.fit(data)
-                                rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
-                                rot_df.columns=list_factors
-                                print('')
-                                print(rot_df)
-                                print('')
-                                print('Variance and communalities:')
-                                print('')
-                                rot_var=pd.DataFrame(fa.get_factor_variance(), index=[f"{'Variance':>}",f"{'Proportional Var':>}",f"{'Cumulative Var':>}"])
-                                rot_var.columns=list_factors
-                                print(rot_var)
-                                print('')
-                                rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
-                                print(rot_com)
-                                print('')
-
-                                if valFactor['factor_table']==True:
-                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
-                                    engine = 'xlsxwriter'
-                                    print('saving')
-                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
-                                        rot_df.to_excel(writer, sheet_name="Without rotation", index = True, header=True, startrow=0, startcol=0)
-                                        rot_var.to_excel(writer, sheet_name="Without rotation", index = True, header=True, startrow=(len(rot_df.index) + 2), startcol=0)
-                                        rot_com.to_excel(writer, sheet_name="Without rotation", index = True, header=True, startrow=(len(rot_df.index) + len(rot_var.index) + 4), startcol=0)
                                     
-                                    print('Factor loadings saved to Excel file')
+                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                        info_df.to_excel(writer, sheet_name="Eigenvalues", index = False, header=False, startrow=0, startcol=0)
+                                        eigenvalues_df.to_excel(writer, sheet_name="Eigenvalues", index = True, header=False, startrow=5, startcol=0)
+                                    
+                                    print('Eigenvalues saved to Excel file')
                                     print('')
 
-                        
-                            
-                        break
+                                if valFactor['factor_scree_png']==True: 
+                                    plt.scatter(range(1,data.shape[1]+1),ev)
+                                    plt.plot(range(1,data.shape[1]+1),ev)
+                                    plt.title('Scree Plot')
+                                    plt.xlabel('Factors')
+                                    plt.ylabel('Eigenvalues')
+                                    plt.grid()
+                                    
+                                    plt.savefig(os.path.join(out_folder, filename + '.png'), dpi=300, format='png', transparent=True)
+                                    fig=None
+                                    
+                                    print('Scree plot saved as png file')
+                                    print('...')
+
+                                if valFactor['factor_scree_pdf']==True:  
+                                    plt.scatter(range(1,data.shape[1]+1),ev)
+                                    plt.plot(range(1,data.shape[1]+1),ev)
+                                    plt.title('Scree Plot')
+                                    plt.xlabel('Factors')
+                                    plt.ylabel('Eigenvalue')
+                                    plt.grid()
+                                    
+                                    plt.savefig(os.path.join(out_folder, filename + '.pdf'), dpi=300, format='pdf', transparent=True)
+                                    fig=None
+                                    
+                                    print('Scree plot saved as PDF file')
+                                    print('...')
+
+                            #Exploratory analysis
+                            if valFactor['exploratory']==True:
+                                print('Factor loadings:')
+                                print('')
+                                loadings_df=pd.DataFrame(loadings, index=fact_variables)
+                                print(loadings_df)
+                                print('...')
+
+                                if valFactor['factor_table']==True:
+                                    list_info=[]
+                                    list_info.append('Factor loadings, exploratory analysis:')
+                                    list_info.append('')
+                                    list_info.append(str_variables)
+                                    list_info.append('')
+                                    df_info=pd.DataFrame(list_info)
+                                    new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                    engine = 'xlsxwriter'
+                                    
+                                    with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                        df_info.to_excel(writer, sheet_name="Factor loadings", index = False, header=False, startrow=0, startcol=0)
+                                        loadings_df.to_excel(writer, sheet_name="Factor loadings", index = True, header=False, startrow=5, startcol=0)
+                                    
+                                    print('')
+                                    print('Factor loadings saved as Excel file.') 
+                                    print('...')   
+                                    
+
+                            #Confirmatory analysis
+                            if valFactor['confirmatory']==True:
+        
+                                n_fact=int(valFactor['nr_factors'])
+                                n_fact_str=f"{valFactor['nr_factors']}"
+
+                                list_factors=[]
+                                n=1
+
+                                while n < (n_fact + 1):
+                                    factor=f'Factor {n}'
+                                    list_factors.append(factor)
+                                    n+=1 
+
+                                
+                                #Varimax rotation
+                                if valFactor['varimax']==True:
+                                    rot="varimax"
+                                    print('Rotation: ' + rot)
+                                    print('Number of factors: ' + n_fact_str)
+                                    fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
+                                    fa.fit(data)
+                                    rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
+                                    rot_df.columns=list_factors
+                                    print('')
+                                    print(rot_df)
+                                    print('')
+                                    print('Variance and communalities:')
+                                    print('')
+                                    rot_var=pd.DataFrame(fa.get_factor_variance(), index=['Variance','Proportional Var','Cumulative Var'])
+                                    rot_var.columns=list_factors
+                                    print(rot_var)
+                                    print('')
+                                    rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
+                                    print(rot_com)
+                                    print('')
+
+                                    if valFactor['factor_table']==True:
+                                        new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                        engine = 'xlsxwriter'
+                                        with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                            rot_df.to_excel(writer, sheet_name="Varimax rotation", index = True, header=True, startrow=0, startcol=0)
+                                        print('Factor loadings saved to Excel file')
+                                        print('')
+
+                                #Promax rotation
+                                elif valFactor['promax']==True:
+                                    rot="promax"
+                                    print('Rotation: ' + rot)
+                                    print('Number of factors: ' + n_fact_str)
+                                    fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
+                                    fa.fit(data)
+                                    rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
+                                    rot_df.columns=list_factors
+                                    print('')
+                                    print(rot_df)
+                                    print('')
+                                    print('Variance and communalities:')
+                                    print('')
+                                    rot_var=pd.DataFrame(fa.get_factor_variance(), index=['Variance','Proportional Var','Cumulative Var'])
+                                    rot_var.columns=list_factors
+                                    print(rot_var)
+                                    print('')
+                                    rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
+                                    print(rot_com)
+                                    print('')
+
+                                    if valFactor['factor_table']==True:
+                                        new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                        engine = 'xlsxwriter'
+                                        with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                            rot_df.to_excel(writer, sheet_name="Promax rotation", index = True, header=True, startrow=0, startcol=0)
+                                        print('Factor loadings saved to Excel file')
+                                        print('')
+
+                                #Oblimin rotation
+                                elif valFactor['oblimin']==True:
+                                    rot="oblimin"
+                                    print('Rotation: ' + rot)
+                                    print('Number of factors: ' + n_fact_str)
+                                    fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
+                                    fa.fit(data)
+                                    rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
+                                    rot_df.columns=list_factors
+                                    print('')
+                                    print(rot_df)
+                                    print('')
+                                    print('Variance and communalities:')
+                                    print('')
+                                    rot_var=pd.DataFrame(fa.get_factor_variance(), index=['Variance','Proportional Var','Cumulative Var'])
+                                    rot_var.columns=list_factors
+                                    print(rot_var)
+                                    print('')
+                                    rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
+                                    print(rot_com)
+                                    print('')
+
+                                    if valFactor['factor_table']==True:
+                                        new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                        engine = 'xlsxwriter'
+                                        with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                            rot_df.to_excel(writer, sheet_name="Oblimin rotation", index = True, header=True, startrow=0, startcol=0)
+                                        print('Factor loadings saved to Excel file')
+                                        print('')
+
+                                #Oblimax rotation
+                                elif valFactor['oblimax']==True:
+                                    rot="oblimax"
+                                    print('Rotation: ' + rot)
+                                    print('Number of factors: ' + n_fact_str)
+                                    fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
+                                    fa.fit(data)
+                                    rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
+                                    rot_df.columns=list_factors
+                                    print('')
+                                    print(rot_df)
+                                    print('')
+                                    print('Variance and communalities:')
+                                    print('')
+                                    rot_var=pd.DataFrame(fa.get_factor_variance(), index=[f"{'Variance':>20}",f"{'Proportional Var':>20}",f"{'Cumulative Var':>20}"])
+                                    rot_var.columns=list_factors
+                                    print(rot_var)
+                                    print('')
+                                    rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
+                                    print(rot_com)
+                                    print('')
+
+                                    if valFactor['factor_table']==True:
+                                        new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                        engine = 'xlsxwriter'
+                                        with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                            rot_df.to_excel(writer, sheet_name="Oblimax rotation", index = True, header=True, startrow=0, startcol=0)
+                                        print('Factor loadings saved to Excel file')
+                                        print('')
+
+                                #Without rotation
+                                elif valFactor['none']==True:
+                                    rot=None
+                                    print('Rotation: None')
+                                    print('Number of factors: ' + n_fact_str)
+                                    fa=FactorAnalyzer(n_factors=n_fact, rotation=rot)
+                                    fa.fit(data)
+                                    rot_df=pd.DataFrame(fa.loadings_, index=data.columns)
+                                    rot_df.columns=list_factors
+                                    print('')
+                                    print(rot_df)
+                                    print('')
+                                    print('Variance and communalities:')
+                                    print('')
+                                    rot_var=pd.DataFrame(fa.get_factor_variance(), index=[f"{'Variance':>}",f"{'Proportional Var':>}",f"{'Cumulative Var':>}"])
+                                    rot_var.columns=list_factors
+                                    print(rot_var)
+                                    print('')
+                                    rot_com=(pd.DataFrame(fa.get_communalities(),index=data.columns,columns=['Communalities']))
+                                    print(rot_com)
+                                    print('')
+
+                                    if valFactor['factor_table']==True:
+                                        new_excel_file=os.path.join(out_folder, filename + '.xlsx')
+                                        engine = 'xlsxwriter'
+                                        print('saving')
+                                        with pd.ExcelWriter(new_excel_file, engine=engine) as writer:
+                                            rot_df.to_excel(writer, sheet_name="Without rotation", index = True, header=True, startrow=0, startcol=0)
+                                            rot_var.to_excel(writer, sheet_name="Without rotation", index = True, header=True, startrow=(len(rot_df.index) + 2), startcol=0)
+                                            rot_com.to_excel(writer, sheet_name="Without rotation", index = True, header=True, startrow=(len(rot_df.index) + len(rot_var.index) + 4), startcol=0)
+                                        
+                                        print('Factor loadings saved to Excel file')
+                                        print('')
+
+                        break                
+                    #evFactor=''
         
         #SAV - converter
         if (not winSav_active) and (valOriginal['sav']==True) and (evOriginal=='Continue'):
